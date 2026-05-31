@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotoCalendar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fc;--card:#fff;--primary:#6366f1;--primary-light:#eef2ff;--text:#1e293b;--text-dim:#64748b;--text-dark:#94a3b8;--border:#e2e8f0;--shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);--shadow-lg:0 10px 40px rgba(0,0,0,.08);--radius:14px;--radius-sm:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+body.touch .hover-only{display:none}
+.app{max-width:800px;margin:0 auto;padding:2rem 1.5rem;width:100%;flex:1}
+
+/* ===== HEADER ===== */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.header h1{font-size:1.5rem;font-weight:800;background:linear-gradient(135deg,var(--primary),#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-actions{display:flex;gap:.5rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border:none;border-radius:var(--radius-sm);font-size:.85rem;font-weight:500;cursor:pointer;transition:all .2s;background:var(--card);color:var(--text);border:1px solid var(--border)}
+.btn:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:#4f46e5;color:#fff}
+.btn-danger{background:#fee2e2;color:#dc2626;border-color:#fecaca}
+.btn-danger:hover{background:#fecaca}
+.btn-sm{padding:.35rem .75rem;font-size:.8rem}
+
+/* ===== BREADCRUMB ===== */
+.breadcrumb{display:flex;align-items:center;gap:.5rem;margin-bottom:2rem;font-size:.9rem;flex-wrap:wrap}
+.breadcrumb span{cursor:pointer;color:var(--text-dim);transition:color .2s;padding:.25rem .5rem;border-radius:6px}
+.breadcrumb span:hover{color:var(--primary);background:var(--primary-light)}
+.breadcrumb span.active{color:var(--text);font-weight:600;cursor:default}
+.breadcrumb .sep{color:var(--text-dark);user-select:none}
+.breadcrumb span.active:hover{background:transparent}
+
+/* ===== YEAR GRID ===== */
+.view{display:none}
+.view.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem}
+.grid-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:2rem 1rem;text-align:center;cursor:pointer;transition:all .25s;box-shadow:var(--shadow)}
+.grid-item:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary)}
+.grid-item .num{font-size:2rem;font-weight:700;color:var(--text)}
+.grid-item .label{font-size:.8rem;color:var(--text-dim);margin-top:.3rem}
+.grid-item.has-photos{border-color:var(--primary);background:var(--primary-light)}
+.grid-item.has-photos .num{color:var(--primary)}
+
+/* ===== MONTH GRID ===== */
+.month-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.75rem}
+.month-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem .5rem;text-align:center;cursor:pointer;transition:all .25s;box-shadow:var(--shadow);font-weight:500;font-size:.9rem}
+.month-item:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:var(--primary)}
+.month-item.has-photos{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.month-item.current{border-color:var(--primary);color:var(--primary);font-weight:700}
+
+/* ===== CALENDAR ===== */
+.calendar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}
+.calendar-header h2{font-size:1.3rem;font-weight:700}
+.calendar-nav{display:flex;gap:.5rem}
+.calendar-nav .btn{padding:.35rem .65rem;font-size:.8rem}
+.weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px}
+.weekdays span{text-align:center;font-size:.75rem;font-weight:600;color:var(--text-dark);padding:.5rem 0}
+.days-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.day-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--radius-sm);cursor:pointer;font-size:.9rem;font-weight:500;transition:all .2s;position:relative;background:var(--card);border:1px solid transparent}
+.day-cell:hover{background:var(--primary-light);border-color:var(--primary)}
+.day-cell.empty{background:transparent;cursor:default}
+.day-cell.has-photos{background:var(--primary-light);border-color:var(--primary);color:var(--primary);font-weight:600}
+.day-cell.has-photos::after{content:'';position:absolute;bottom:6px;width:5px;height:5px;border-radius:50%;background:var(--primary)}
+.day-cell.today{font-weight:700;border-color:var(--text-dim)}
+
+/* ===== DAY DETAIL ===== */
+.day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem}
+.day-header h2{font-size:1.3rem;font-weight:700}
+.drop-zone{position:relative;border:2px dashed var(--border);border-radius:var(--radius);padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:all .25s;margin-bottom:2rem;background:var(--card)}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--primary);background:var(--primary-light)}
+.drop-zone .icon{font-size:2rem;margin-bottom:.5rem}
+.drop-zone p{color:var(--text-dim);font-size:.9rem}
+.drop-zone input{display:none}
+
+/* Photos */
+.photo-list{display:grid;gap:1.5rem}
+.photo-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .2s}
+.photo-card:hover{box-shadow:var(--shadow-lg)}
+.photo-card img{width:100%;max-height:400px;object-fit:contain;background:#f1f5f9;display:block}
+.photo-body{padding:1rem 1.25rem 1.25rem}
+.photo-body textarea{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:.75rem;font-family:'Inter',sans-serif;font-size:.9rem;resize:vertical;min-height:60px;transition:border-color .2s;background:var(--bg);color:var(--text)}
+.photo-body textarea:focus{outline:none;border-color:var(--primary)}
+.photo-footer{display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;font-size:.8rem;color:var(--text-dim)}
+.photo-actions{display:flex;gap:.5rem}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text-dim)}
+.empty-state .icon{font-size:3rem;margin-bottom:1rem}
+.empty-state p{font-size:.95rem}
+
+/* Archive */
+.archive-stats{text-align:center;margin-bottom:1.5rem;color:var(--text-dim);font-size:.9rem}
+.archive-stats strong{color:var(--text)}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:#fff;padding:.75rem 1.5rem;border-radius:var(--radius-sm);font-size:.85rem;font-weight:500;opacity:0;transition:all .35s ease;z-index:100;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ===== RESPONSIVE ===== */
+/* Archive grid — как на iPhone */
+.archive-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:4px;padding:0}
+.archive-thumb{aspect-ratio:1;overflow:hidden;border-radius:6px;cursor:pointer;position:relative;background:#f1f5f9;transition:transform .2s,box-shadow .2s}
+.archive-thumb:hover{transform:scale(1.04);box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:2}
+.archive-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.archive-thumb .date-badge{position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.55);color:#fff;font-size:.65rem;padding:2px 6px;border-radius:4px;backdrop-filter:blur(4px)}
+.archive-empty{text-align:center;padding:3rem 1rem;color:var(--text-dim)}
+
+/* Lightbox */
+.lightbox{position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+.lightbox.open{display:flex}
+.lightbox-inner{position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;align-items:center}
+.lightbox img{max-width:100%;max-height:80vh;object-fit:contain;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.lightbox-caption{color:#fff;margin-top:1rem;font-size:.9rem;text-align:center;max-width:500px;line-height:1.5;padding:0 1rem}
+.lightbox-date{color:rgba(255,255,255,.5);font-size:.8rem;margin-top:.25rem}
+.lightbox-close{position:fixed;top:1.5rem;right:1.5rem;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.lightbox-close:hover{background:rgba(255,255,255,.3)}
+.lightbox-nav{position:fixed;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:1.5rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;backdrop-filter:blur(4px)}
+.lightbox-nav:hover{background:rgba(255,255,255,.25)}
+.lightbox-prev{left:1.5rem}
+.lightbox-next{right:1.5rem}
+.lightbox-del{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);padding:.6rem 1.5rem;border-radius:30px;background:rgba(220,38,38,.8);border:none;color:#fff;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:.5rem;transition:background .2s;backdrop-filter:blur(4px)}
+.lightbox-del:hover{background:#dc2626}
+
+@media(max-width:768px){
+  .app{padding:1rem .75rem}
+  .header{margin-bottom:1.5rem}
+  .header h1{font-size:1.2rem}
+  .grid{grid-template-columns:repeat(4,1fr);gap:.5rem}
+  .grid-item{padding:1rem .5rem}
+  .grid-item .num{font-size:1.3rem}
+  .month-grid{grid-template-columns:repeat(4,1fr);gap:.5rem}
+  .month-item{padding:.8rem .3rem;font-size:.8rem}
+  .calendar-header h2{font-size:1rem}
+  .day-cell{font-size:.8rem}
+  .day-cell.has-photos::after{bottom:3px;width:4px;height:4px}
+  .drop-zone{padding:1.5rem 1rem}
+  .drop-zone .icon{font-size:1.5rem}
+  .drop-zone p{font-size:.8rem}
+  .photo-card img{max-height:250px}
+  .lightbox-nav{width:40px;height:40px;font-size:1.2rem}
+  .lightbox-prev{left:.5rem}.lightbox-next{right:.5rem}
+  .lightbox-close{top:.75rem;right:.75rem;width:36px;height:36px;font-size:1.1rem}
+  .lightbox-inner{max-width:98vw}
+  .toast{font-size:.8rem;padding:.6rem 1.2rem;bottom:1rem}
+}
+
+@media(max-width:420px){
+  .grid{grid-template-columns:repeat(3,1fr)}
+  .month-grid{grid-template-columns:repeat(3,1fr);gap:.4rem}
+  .month-item{padding:.6rem .2rem;font-size:.75rem}
+  .archive-grid{grid-template-columns:repeat(3,1fr);gap:3px}
+  .weekdays span{font-size:.7rem}
+  .day-cell{font-size:.75rem;border-radius:4px}
+  .photo-body{padding:.75rem}
+  .photo-body textarea{font-size:.85rem;padding:.5rem}
+  .breadcrumb{font-size:.8rem;gap:.3rem}
+  .breadcrumb span{padding:.15rem .35rem}
+  .photo-list{gap:1rem}
+  .btn,.btn-sm{padding:.45rem .7rem;font-size:.8rem;min-height:36px}
+  .btn-primary{min-height:40px}
+  .day-header .btn-primary{padding:.5rem 1rem;font-size:.9rem;min-height:44px}
+}
+
+/* iPhone notch safe area */
+@supports(padding:max(0px)){
+  .app{padding-left:max(.75rem,env(safe-area-inset-left));padding-right:max(.75rem,env(safe-area-inset-right))}
+  .lightbox-close{top:max(.75rem,env(safe-area-inset-top));right:max(.75rem,env(safe-area-inset-right))}
+  .lightbox-del{bottom:max(2rem,env(safe-area-inset-bottom))}
+}
+/* Password gate */
+.password-gate{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#667eea,#764ba2);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;text-align:center;padding:24px;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.password-gate .logo{font-size:56px;margin-bottom:8px}
+.password-gate h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:4px}
+.password-gate p{color:rgba(255,255,255,.7);font-size:14px;margin-bottom:28px}
+.password-gate input{background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.3);border-radius:14px;padding:14px 20px;font-size:20px;color:#fff;text-align:center;width:220px;outline:none;transition:border-color .3s;letter-spacing:6px;font-weight:600}
+.password-gate input::placeholder{color:rgba(255,255,255,.3);letter-spacing:0;font-weight:400}
+.password-gate input:focus{border-color:rgba(255,255,255,.6)}
+.password-gate .error{color:#fca5a5;font-size:13px;margin-top:12px;min-height:20px}.password-gate .hint{color:rgba(255,255,255,.4);font-size:12px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="password-gate" id="passwordGate">
+  <div class="logo">📸</div>
+  <h1>PhotoCalendar</h1>
+  <p>Введите пароль для входа</p>
+  <input type="password" id="passwordInput" placeholder="••••••••" maxlength="20" autocomplete="off">
+  <div class="error" id="passwordError"></div>
+  <div class="hint">доступ по паролю</div>
+</div>
+<div class="app">
+  <div class="header">
+    <h1 style="cursor:pointer" onclick="goHome()">📸 PhotoCalendar</h1>
+    <div class="header-actions">
+      <button class="btn btn-sm" onclick="goToday()">Сегодня</button>
+    </div>
+  </div>
+
+  <div class="breadcrumb" id="breadcrumb"></div>
+
+  <!-- Year View -->
+  <div class="view active" id="view-year">
+    <div class="grid" id="year-grid">
+      <div class="grid-item" onclick="selectYear(1977)"><div class="num">1977</div></div>
+      <div class="grid-item" onclick="selectYear(1978)"><div class="num">1978</div></div>
+      <div class="grid-item" onclick="selectYear(1979)"><div class="num">1979</div></div>
+      <div class="grid-item" onclick="selectYear(1980)"><div class="num">1980</div></div>
+      <div class="grid-item" onclick="selectYear(1981)"><div class="num">1981</div></div>
+      <div class="grid-item" onclick="selectYear(1982)"><div class="num">1982</div></div>
+      <div class="grid-item" onclick="selectYear(1983)"><div class="num">1983</div></div>
+      <div class="grid-item" onclick="selectYear(1984)"><div class="num">1984</div></div>
+      <div class="grid-item" onclick="selectYear(1985)"><div class="num">1985</div></div>
+      <div class="grid-item" onclick="selectYear(1986)"><div class="num">1986</div></div>
+      <div class="grid-item" onclick="selectYear(1987)"><div class="num">1987</div></div>
+      <div class="grid-item" onclick="selectYear(1988)"><div class="num">1988</div></div>
+      <div class="grid-item" onclick="selectYear(1989)"><div class="num">1989</div></div>
+      <div class="grid-item" onclick="selectYear(1990)"><div class="num">1990</div></div>
+      <div class="grid-item" onclick="selectYear(1991)"><div class="num">1991</div></div>
+      <div class="grid-item" onclick="selectYear(1992)"><div class="num">1992</div></div>
+      <div class="grid-item" onclick="selectYear(1993)"><div class="num">1993</div></div>
+      <div class="grid-item" onclick="selectYear(1994)"><div class="num">1994</div></div>
+      <div class="grid-item" onclick="selectYear(1995)"><div class="num">1995</div></div>
+      <div class="grid-item" onclick="selectYear(1996)"><div class="num">1996</div></div>
+      <div class="grid-item" onclick="selectYear(1997)"><div class="num">1997</div></div>
+      <div class="grid-item" onclick="selectYear(1998)"><div class="num">1998</div></div>
+      <div class="grid-item" onclick="selectYear(1999)"><div class="num">1999</div></div>
+      <div class="grid-item" onclick="selectYear(2000)"><div class="num">2000</div></div>
+      <div class="grid-item" onclick="selectYear(2001)"><div class="num">2001</div></div>
+      <div class="grid-item" onclick="selectYear(2002)"><div class="num">2002</div></div>
+      <div class="grid-item" onclick="selectYear(2003)"><div class="num">2003</div></div>
+      <div class="grid-item" onclick="selectYear(2004)"><div class="num">2004</div></div>
+      <div class="grid-item" onclick="selectYear(2005)"><div class="num">2005</div></div>
+      <div class="grid-item" onclick="selectYear(2006)"><div class="num">2006</div></div>
+      <div class="grid-item" onclick="selectYear(2007)"><div class="num">2007</div></div>
+      <div class="grid-item" onclick="selectYear(2008)"><div class="num">2008</div></div>
+      <div class="grid-item" onclick="selectYear(2009)"><div class="num">2009</div></div>
+      <div class="grid-item" onclick="selectYear(2010)"><div class="num">2010</div></div>
+      <div class="grid-item" onclick="selectYear(2011)"><div class="num">2011</div></div>
+      <div class="grid-item" onclick="selectYear(2012)"><div class="num">2012</div></div>
+      <div class="grid-item" onclick="selectYear(2013)"><div class="num">2013</div></div>
+      <div class="grid-item" onclick="selectYear(2014)"><div class="num">2014</div></div>
+      <div class="grid-item" onclick="selectYear(2015)"><div class="num">2015</div></div>
+      <div class="grid-item" onclick="selectYear(2016)"><div class="num">2016</div></div>
+      <div class="grid-item" onclick="selectYear(2017)"><div class="num">2017</div></div>
+      <div class="grid-item" onclick="selectYear(2018)"><div class="num">2018</div></div>
+      <div class="grid-item" onclick="selectYear(2019)"><div class="num">2019</div></div>
+      <div class="grid-item" onclick="selectYear(2020)"><div class="num">2020</div></div>
+      <div class="grid-item" onclick="selectYear(2021)"><div class="num">2021</div></div>
+      <div class="grid-item" onclick="selectYear(2022)"><div class="num">2022</div></div>
+      <div class="grid-item" onclick="selectYear(2023)"><div class="num">2023</div></div>
+      <div class="grid-item" onclick="selectYear(2024)"><div class="num">2024</div></div>
+      <div class="grid-item" onclick="selectYear(2025)"><div class="num">2025</div></div>
+      <div class="grid-item" onclick="selectYear(2026)"><div class="num">2026</div></div>
+      <div class="grid-item" onclick="selectYear(2027)"><div class="num">2027</div></div>
+      <div class="grid-item" onclick="selectYear(2028)"><div class="num">2028</div></div>
+      <div class="grid-item" onclick="selectYear(2029)"><div class="num">2029</div></div>
+      <div class="grid-item" onclick="selectYear(2030)"><div class="num">2030</div></div>
+    </div>
+  </div>
+
+  <!-- Month View -->
+  <div class="view" id="view-month">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:.5rem">
+      <h2 style="font-size:1.2rem;font-weight:700" id="month-year-title"></h2>
+      <button class="btn btn-sm" onclick="openYearArchive()">📦 Архив года</button>
+    </div>
+    <div class="month-grid" id="month-grid"></div>
+  </div>
+
+  <!-- Day View (Calendar) -->
+  <div class="view" id="view-calendar">
+    <div class="calendar-header">
+      <h2 id="calendar-title"></h2>
+      <div class="calendar-nav">
+        <button class="btn btn-sm" onclick="prevMonth()">←</button>
+        <button class="btn btn-sm" onclick="nextMonth()">→</button>
+      </div>
+    </div>
+    <div class="weekdays">
+      <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+    </div>
+    <div class="days-grid" id="days-grid"></div>
+  </div>
+
+  <!-- Day Detail View -->
+  <div class="view" id="view-day">
+    <div class="day-header">
+      <h2 id="day-title"></h2>
+      <button class="btn btn-sm btn-primary" onclick="document.getElementById('file-input').click()">+ Фото</button>
+      <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="addPhotos(event)">
+    </div>
+    <div class="drop-zone" id="drop-zone">
+      <div class="icon">📁</div>
+      <p>Перетащи фото сюда или <strong>нажми + Фото</strong></p>
+    </div>
+    <div class="photo-list" id="photo-list"></div>
+  </div>
+
+  <!-- Archive View -->
+  <div class="view" id="view-archive">
+    <div class="day-header">
+      <h2 id="archive-title"></h2>
+      <button class="btn btn-sm" onclick="setView('goMonth')">← Назад</button>
+    </div>
+    <div class="photo-list" id="archive-list"></div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-nav lightbox-prev" onclick="prevPhoto()">‹</button>
+  <button class="lightbox-nav lightbox-next" onclick="nextPhoto()">›</button>
+  <div class="lightbox-inner">
+    <img id="lightbox-img" src="" alt="">
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+    <div class="lightbox-date" id="lightbox-date"></div>
+  </div>
+  <button class="lightbox-del" id="lightbox-del" onclick="deleteCurrentPhoto()">🗑️ Удалить</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== STATE =====
+let state={
+  year:null,
+  month:null,  // 1-12
+  day:null,
+  _archive:false,
+  photos:[]    // loaded from DB
+};
+
+// ===== INDEXED DB =====
+function openDB(){
+  return new Promise((res,rej)=>{
+    if(!window.indexedDB)return rej(new Error('IndexedDB not supported'));
+    const req=window.indexedDB.open('PhotoCalendar',1);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('photos')){
+        const store=db.createObjectStore('photos',{keyPath:'id',autoIncrement:true});
+        store.createIndex('date','date',{unique:false});
+      }
+    };
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e.target.error);
+  });
+}
+
+async function getAllPhotos(){
+  try{
+    const db=await openDB();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction('photos','readonly');
+      const req=tx.objectStore('photos').getAll();
+      req.onsuccess=()=>res(req.result||[]);
+      req.onerror=()=>rej(req.error);
+    });
+  }catch(e){console.warn('DB error:',e);return []}
+}
+
+async function getPhotosByDate(year,month,day){
+  const all=await getAllPhotos();
+  const key=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+  return all.filter(p=>p.date===key).sort((a,b)=>b.createdAt-a.createdAt);
+}
+
+async function addPhoto(entry){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('photos','readwrite');
+    const req=tx.objectStore('photos').add(entry);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+async function updatePhoto(id,data){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('photos','readwrite');
+    const req=tx.objectStore('photos').put({...data,id});
+    req.onsuccess=()=>res();
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+async function deletePhoto(id){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('photos','readwrite');
+    const req=tx.objectStore('photos').delete(id);
+    req.onsuccess=()=>res();
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+// ===== NAVIGATION =====
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+}
+
+function updateBreadcrumb(){
+  const b=document.getElementById('breadcrumb');
+  const parts=[];
+  if(state.year&&!state._archive)parts.push({label:state.year,action:'goYear'});
+  if(state.year&&state._archive)parts.push({label:state.year+' (архив)',action:null});
+  if(state.month)parts.push({label:getMonthName(state.month),action:'goMonth'});
+  if(state.day)parts.push({label:state.day,action:null});
+  b.innerHTML=parts.map((p,i)=>{
+    const active=i===parts.length-1;
+    const sep=i>0?'<span class="sep">›</span>':'';
+    return sep+`<span class="${active?'active':''}" onclick="${active||!p.action?'':'setView(\''+p.action+'\')'}">${p.label}</span>`;
+  }).join('');
+  if(!state.year&&!state.month&&!state.day){
+    b.innerHTML='<span class="active">Годы</span>';
+  }
+}
+
+function setView(target){
+  if(target==='goYear'){state.month=null;state.day=null;state._archive=false;renderYear();showView('year');updateBreadcrumb()}
+  if(target==='goMonth'){state.month=null;state.day=null;state._archive=false;renderMonthGrid();showView('month');updateBreadcrumb()}
+}
+
+// ===== YEAR VIEW =====
+function renderYear(){
+  const currentYear=new Date().getFullYear();
+  document.querySelectorAll('#year-grid .grid-item').forEach(el=>{
+    const year=parseInt(el.querySelector('.num').textContent);
+    el.classList.toggle('has-photos',year===currentYear);
+  });
+  showView('year');
+  updateBreadcrumb();
+}
+
+function selectYear(y){
+  state.year=y;state.month=null;state.day=null;state._archive=false;
+  renderMonthGrid();
+}
+
+// ===== MONTH VIEW =====
+function getMonthName(m){const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];return months[m-1]}
+
+async function renderMonthGrid(){
+  const g=document.getElementById('month-grid');
+  document.getElementById('month-year-title').textContent=state.year;
+  // Show months immediately
+  const currentMonth=new Date().getMonth()+1;
+  g.innerHTML=[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>{
+    return `<div class="month-item${m===currentMonth&&state.year===new Date().getFullYear()?' current':''}" onclick="selectMonth(${m})">
+      ${getMonthName(m).slice(0,3)}
+    </div>`;
+  }).join('');
+  showView('month');
+  updateBreadcrumb();
+  // Then load photo indicators
+  try{
+    const all=await getAllPhotos();
+    const monthsWithPhotos=new Set(all.filter(p=>p.date.startsWith(state.year+'-')).map(p=>parseInt(p.date.split('-')[1])));
+    document.querySelectorAll('#month-grid .month-item').forEach(el=>{
+      const idx=[...el.parentNode.children].indexOf(el);
+      if(monthsWithPhotos.has(idx+1))el.classList.add('has-photos');
+    });
+  }catch(e){console.warn('Photo load error:',e)}
+}
+
+function selectMonth(m){
+  state.month=m;state.day=null;state._archive=false;
+  renderCalendar();
+}
+
+// ===== ARCHIVE VIEW =====
+let _archivePhotos=[];
+async function openYearArchive(){
+  state._archive=true;state.month=null;state.day=null;
+  const all=await getAllPhotos();
+  _archivePhotos=all.filter(p=>p.date.startsWith(state.year+'-')).sort((a,b)=>b.createdAt-a.createdAt);
+  document.getElementById('archive-title').textContent='Архив '+state.year;
+  const list=document.getElementById('archive-list');
+  if(!_archivePhotos.length){
+    list.innerHTML=`<div class="archive-empty"><div class="icon" style="font-size:3rem;margin-bottom:1rem">📦</div><p>В ${state.year} году пока нет фотографий</p></div>`;
+  } else {
+    list.innerHTML='<div class="archive-grid">'+_archivePhotos.map((p,i)=>{
+      const parts=p.date.split('-');
+      const y=parts[0],m=parts[1],d=parts[2];
+      return `<div class="archive-thumb" onclick="openLightbox(${i})">
+        <img src="${p.imageData}" alt="" loading="lazy">
+        <span class="date-badge">${d}.${m}</span>
+      </div>`;
+    }).join('')+'</div>';
+  }
+  showView('archive');
+  updateBreadcrumb();
+}
+
+// ===== LIGHTBOX =====
+let _lbIndex=0;
+function openLightbox(idx){
+  _lbIndex=idx;
+  const p=_archivePhotos[idx];
+  if(!p)return;
+  const parts=p.date.split('-');
+  const y=parts[0],m=parts[1],d=parts[2];
+  document.getElementById('lightbox-img').src=p.imageData;
+  document.getElementById('lightbox-caption').textContent=p.note||'';
+  document.getElementById('lightbox-date').textContent=d+'.'+m+'.'+y;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow='hidden';
+  updateLightboxNav();
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow='';
+}
+function prevPhoto(){if(_lbIndex>0){openLightbox(_lbIndex-1)}}
+function nextPhoto(){if(_lbIndex<_archivePhotos.length-1){openLightbox(_lbIndex+1)}}
+function updateLightboxNav(){
+  document.querySelector('.lightbox-prev').style.display=_lbIndex>0?'':'none';
+  document.querySelector('.lightbox-next').style.display=_lbIndex<_archivePhotos.length-1?'':'none';
+}
+async function deleteCurrentPhoto(){
+  const p=_archivePhotos[_lbIndex];
+  if(!p)return;
+  await deletePhoto(p.id);
+  showToast('Фото удалено');
+  _archivePhotos.splice(_lbIndex,1);
+  if(_archivePhotos.length===0){closeLightbox();openYearArchive();return}
+  if(_lbIndex>=_archivePhotos.length)_lbIndex=_archivePhotos.length-1;
+  openLightbox(_lbIndex);
+  openYearArchive();
+}
+
+// Keyboard + touch navigation
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('lightbox').classList.contains('open'))return;
+  if(e.key==='Escape')closeLightbox();
+  if(e.key==='ArrowLeft')prevPhoto();
+  if(e.key==='ArrowRight')nextPhoto();
+});
+
+// Touch swipe on lightbox
+(function(){
+  let sx=0,sy=0,swiping=false;
+  const lb=document.getElementById('lightbox');
+  lb.addEventListener('touchstart',e=>{
+    const t=e.touches[0];
+    sx=t.clientX;sy=t.clientY;swiping=true;
+  },{passive:true});
+  lb.addEventListener('touchmove',e=>{
+    if(!swiping)return;
+    const t=e.touches[0];
+    const dx=Math.abs(t.clientX-sx),dy=Math.abs(t.clientY-sy);
+    if(dx>30&&dx>dy*1.5){e.preventDefault()}
+  },{passive:false});
+  lb.addEventListener('touchend',e=>{
+    if(!swiping)return;
+    swiping=false;
+    const t=e.changedTouches[0];
+    const dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*2){
+      if(dx<0)nextPhoto();else prevPhoto();
+    }
+  },{passive:true});
+})();
+
+// Tap outside image to close
+document.getElementById('lightbox').addEventListener('click',e=>{
+  if(e.target===document.getElementById('lightbox'))closeLightbox();
+});
+
+// ===== CALENDAR VIEW =====
+async function renderCalendar(){
+  const y=state.year,m=state.month;
+  document.getElementById('calendar-title').textContent=getMonthName(m)+' '+y;
+
+  const firstDay=new Date(y,m-1,1).getDay();
+  const daysInMonth=new Date(y,m,0).getDate();
+
+  const grid=document.getElementById('days-grid');
+  const offset=firstDay===0?6:firstDay-1;
+
+  // Show days immediately
+  let html='';
+  for(let i=0;i<offset;i++)html+=`<div class="day-cell empty"></div>`;
+  const today=new Date();
+  for(let d=1;d<=daysInMonth;d++){
+    const isToday=d===today.getDate()&&m===today.getMonth()+1&&y===today.getFullYear();
+    html+=`<div class="day-cell${isToday?' today':''}" onclick="selectDay(${d})">${d}</div>`;
+  }
+  grid.innerHTML=html;
+  showView('calendar');
+  updateBreadcrumb();
+
+  // Then load photo indicators
+  try{
+    const all=await getAllPhotos();
+    const daysWithPhotos=new Set(all.filter(p=>p.date.startsWith(y+'-'+String(m).padStart(2,'0'))).map(p=>parseInt(p.date.split('-')[2])));
+    document.querySelectorAll('#days-grid .day-cell:not(.empty)').forEach(el=>{
+      const day=parseInt(el.textContent);
+      if(daysWithPhotos.has(day))el.classList.add('has-photos');
+    });
+  }catch(e){console.warn('Photo load error:',e)}
+}
+
+function prevMonth(){
+  if(state.month===1){state.month=12;state.year--}
+  else state.month--;
+  state.day=null;
+  renderCalendar();
+  updateBreadcrumb();
+}
+function nextMonth(){
+  if(state.month===12){state.month=1;state.year++}
+  else state.month++;
+  state.day=null;
+  renderCalendar();
+  updateBreadcrumb();
+}
+
+// ===== DAY VIEW =====
+async function selectDay(d){
+  state.day=d;
+  document.getElementById('day-title').textContent=d+' '+getMonthName(state.month)+' '+state.year;
+  await renderDayPhotos();
+  showView('day');
+  updateBreadcrumb();
+}
+
+async function renderDayPhotos(){
+  const list=document.getElementById('photo-list');
+  const photos=await getPhotosByDate(state.year,state.month,state.day);
+
+  if(photos.length===0){
+    list.innerHTML=`<div class="empty-state"><div class="icon">🖼️</div><p>В этот день пока нет фотографий.<br>Перетащи фото или нажми + Фото</p></div>`;
+    return;
+  }
+
+  list.innerHTML=photos.map(p=>`
+    <div class="photo-card" data-id="${p.id}">
+      <img src="${p.imageData}" alt="photo" loading="lazy">
+      <div class="photo-body">
+        <textarea class="note-input" data-id="${p.id}" placeholder="Добавьте описание...">${escapeHtml(p.note||'')}</textarea>
+        <div class="photo-footer">
+          <span>${new Date(p.createdAt).toLocaleString('ru')}</span>
+          <div class="photo-actions">
+            <button class="btn btn-sm" onclick="saveNote(${p.id})">💾</button>
+            <button class="btn btn-sm btn-danger" onclick="deletePhotoConfirm(${p.id})">🗑️</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(str){
+  const d=document.createElement('div');
+  d.textContent=str;
+  return d.innerHTML;
+}
+
+// ===== ADD PHOTOS =====
+async function addPhotos(event){
+  const files=event.target.files;
+  if(!files.length)return;
+  showToast('Загрузка...');
+  try{
+    for(const file of files){
+      const data=await fileToBase64(file);
+      await addPhoto({
+        date:state.year+'-'+String(state.month).padStart(2,'0')+'-'+String(state.day).padStart(2,'0'),
+        year:state.year,
+        month:state.month,
+        day:state.day,
+        note:'',
+        imageData:data,
+        createdAt:Date.now()
+      });
+    }
+    event.target.value='';
+    await renderDayPhotos();
+    showToast('Фото добавлены ✓');
+  }catch(e){showToast('Ошибка загрузки');console.warn(e)}
+}
+
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ===== DROP ZONE =====
+const dz=document.getElementById('drop-zone');
+['dragenter','dragover'].forEach(ev=>{
+  dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('dragover')});
+});
+['dragleave','drop'].forEach(ev=>{
+  dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('dragover')});
+});
+dz.addEventListener('drop',e=>{
+  e.preventDefault();
+  dz.classList.remove('dragover');
+  const files=e.dataTransfer.files;
+  if(files.length){
+    addPhotos({target:{files}});
+  }
+});
+dz.addEventListener('click',()=>{
+  document.getElementById('file-input').click();
+});
+
+// ===== SAVE NOTE =====
+async function saveNote(id){
+  const textarea=document.querySelector(`.note-input[data-id="${id}"]`);
+  if(!textarea)return;
+  const note=textarea.value;
+  try{
+    const db=await openDB();
+    const tx=db.transaction('photos','readonly');
+    const req=tx.objectStore('photos').get(id);
+    req.onsuccess=async ()=>{
+      const existing=req.result;
+      if(!existing)return;
+      existing.note=note;
+      await updatePhoto(id,existing);
+      showToast('Заметка сохранена ✓');
+    };
+  }catch(e){console.warn('Save error:',e)}
+}
+
+// ===== DELETE PHOTO =====
+async function deletePhotoConfirm(id){
+  const card=document.querySelector(`.photo-card[data-id="${id}"]`);
+  if(!card)return;
+  card.style.opacity='0.3';
+  try{
+    await deletePhoto(id);
+    showToast('Фото удалено');
+    await renderDayPhotos();
+  }catch(e){showToast('Ошибка удаления');card.style.opacity='1';console.warn(e)}
+}
+
+// ===== GO TODAY =====
+function goHome(){state.year=null;state.month=null;state.day=null;state._archive=false;renderYear()}
+async function goToday(){
+  const d=new Date();
+  state.year=d.getFullYear();
+  state.month=d.getMonth()+1;
+  state.day=d.getDate();
+  document.getElementById('day-title').textContent=state.day+' '+getMonthName(state.month)+' '+state.year;
+  await renderDayPhotos();
+  showView('day');
+  updateBreadcrumb();
+}
+
+// ===== TOAST =====
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+// ===== INIT =====
+if('ontouchstart'in window||navigator.maxTouchPoints>0)document.body.classList.add('touch');
+// ===== PASSWORD =====
+const PWD_HASH='7543cfb0319b7e8b373896d0e58fdeae41dbf60c4468135c4f0b48055dcdc729';
+const gate=document.getElementById('passwordGate');
+const input=document.getElementById('passwordInput');
+const errEl=document.getElementById('passwordError');
+async function checkPassword(pwd){
+  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pwd));
+  const hex=Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  return hex===PWD_HASH;
+}
+input.addEventListener('keydown',async e=>{
+  if(e.key!=='Enter')return;
+  input.disabled=true;
+  const ok=await checkPassword(input.value);
+  input.disabled=false;
+  if(ok){
+    gate.style.display='none';
+    input.value='';
+    renderYear();
+  }else{
+    errEl.textContent='Неверный пароль';
+    input.value='';
+    input.focus();
+  }
+});
+setTimeout(()=>input.focus(),300);
+</script>
+</body>
+</html>
